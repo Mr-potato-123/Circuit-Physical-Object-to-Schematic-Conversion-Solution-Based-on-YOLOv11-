@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 from typing import Tuple, List
 
-# 类别索引到名称的映射（根据你给出的 names）
+# 类别索引到名称的映射
 CLASS_NAMES = {
     0: "R_box",
     1: "G",
@@ -22,7 +22,7 @@ def get_element_location(image_path: str) -> List[Tuple[Tuple[int, int, int, int
             ...
         ]
     """
-    results = YOLO("C:\\Users\\王越\\Desktop\\code for py\\best.pt").predict(
+    results = YOLO("best.pt").predict(
         source=image_path,
         imgsz=640,
         conf=0.75,
@@ -49,13 +49,12 @@ def get_element_location(image_path: str) -> List[Tuple[Tuple[int, int, int, int
 
 
 
-def demo():
-    model = YOLO("C:\\Users\\王越\\Desktop\\code for py\\best.pt")
-    results = model.predict(source = "D:\\test\\6.jpg",
-              project = "C:\\Users\\王越\\Desktop\\code for py\\predict",
+def demo(filename):
+    model = YOLO("best.pt")
+    results = model.predict(source = filename,
+              project = "predict",
              save=True,save_txt = True,save_conf = True,exist_ok = True, imgsz=640, conf=0.75)
 
     print(results)
     return
 
-demo()

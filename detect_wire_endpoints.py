@@ -2,9 +2,10 @@ import cv2
 import numpy as np
 from typing import List, Tuple
 import math
+from skimage import morphology
 
 # ------------------------------
-# 主函数：颜色区间 → 端点对
+# 主函数：颜色区间 → 端点对。基于1280x1280的处理，如不符合则强行resize
 # ------------------------------
 def detect_wire_endpoints(
         image_path: str,
@@ -14,7 +15,12 @@ def detect_wire_endpoints(
     img_bgr = cv2.imread(image_path)
     if img_bgr is None:
         raise FileNotFoundError(image_path)
+    
+    
     img_bgr = cv2.resize(img_bgr, (640, 640), interpolation=cv2.INTER_AREA)
+
+    # 统一缩放到1280x1280，保持细节同时适配后续处理
+    img_bgr = cv2.resize(img_bgr, (1280, 1280)) 
     hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
 
     # 1. 颜色二值化
@@ -63,42 +69,22 @@ def _thicken_wires(mask: np.ndarray) -> np.ndarray:
 
 
 # ------------------------------------------------------------
-# 3. Zhang-Suen 骨架化
+# 3. Zhang-Suen 骨架化（OpenCV读取，skimage处理）
 # ------------------------------------------------------------
+
 def _thinning_zs(bw: np.ndarray) -> np.ndarray:
-    img = (bw > 0).astype(np.uint8)
-    h, w = img.shape
-    dirs = [(-1, 0), (-1, 1), (0, 1), (1, 1),
-            (1, 0), (1, -1), (0, -1), (-1, -1)]
-
-    def n(x, y):
-        return [img[x + dx, y + dy] if 0 <= x + dx < h and 0 <= y + dy < w else 0
-                for dx, dy in dirs]
-
-    def iterate(step):
-        mark = np.zeros_like(img)
-        for i in range(1, h - 1):
-            for j in range(1, w - 1):
-                if img[i, j] == 0:
-                    continue
-                neigh = n(i, j)
-                B = sum(neigh)
-                if 2 <= B <= 6:
-                    A = sum([1 for k in range(8) if neigh[k] == 0 and neigh[(k + 1) % 8] == 1])
-                    if A == 1:
-                        if step == 1:
-                            ok = neigh[0] * neigh[2] * neigh[4] == 0 and neigh[2] * neigh[4] * neigh[6] == 0
-                        else:
-                            ok = neigh[0] * neigh[2] * neigh[6] == 0 and neigh[0] * neigh[4] * neigh[6] == 0
-                        if ok:
-                            mark[i, j] = 1
-        img[mark > 0] = 0
-        return np.any(mark)
-
-    while True:
-        if not iterate(1) and not iterate(2):
-            break
-    return img * 255
+    """
+    Zhang-Suen 骨架化算法
+    输入：二值图像 (0 或 255)
+    输出：骨架图像 (0 或 255)
+    """
+    # skimage需要二值布尔数组
+    binary = (bw > 0)
+    
+    # 骨架化
+    skeleton = morphology.skeletonize(binary)
+    
+    return (skeleton * 255).astype(np.uint8)
 
 
 # ------------------------------------------------------------
